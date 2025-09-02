@@ -1,4 +1,11 @@
-requests==2.31.0
-selenium==4.15.0
-webdriver-manager==4.0.1
-pyautogui==0.9.54
+# 基础依赖包
+faker>=22.0.0
+requests>=2.28.0
+playwright>=1.40.0
+
+# macOS特定依赖（可选）
+# 如果需要更好的网络处理
+urllib3>=1.26.0
+
+# 开发和调试工具（可选）
+# selenium>=4.0.0  # 备用浏览器驱动

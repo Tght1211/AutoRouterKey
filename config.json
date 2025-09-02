@@ -1,0 +1,30 @@
+{
+    "browser_path": "",
+    "proxy": "http://127.0.0.1:51081",
+    "Bot_protection_wait": 15,
+    "max_captcha_retries": 3,
+    "concurrent_flows": 2,
+    "max_tasks": 2,
+    "use_incognito_mode": true,
+    "enable_oauth2": false,
+    "close_browser_after_registration": false,
+    "client_id": "",
+    "redirect_url": "",
+    "Scopes": [
+        "offline_access",
+        "https://graph.microsoft.com/Mail.ReadWrite",
+        "https://graph.microsoft.com/Mail.Send",
+        "https://graph.microsoft.com/User.Read"
+    ],
+    "_comments": {
+        "browser_path": "留空时会自动检测macOS上的Chrome/Edge浏览器",
+        "proxy": "socks5://127.0.0.1:51081",
+        "use_incognito_mode": "是否使用无痕模式，有助于通过人机验证",
+        "close_browser_after_registration": "注册完成后是否关闭浏览器，设置为false可在注册后继续操作",
+        "macOS_browsers": [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+        ]
+    },
+    "info": "此配置已针对macOS优化。建议选用指纹浏览器，最好能过https://www.browserscan.net。如果enable_oauth2为false，则OAuth相关参数可选。浏览器路径留空时会自动检测。"
+}
