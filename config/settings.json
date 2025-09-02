@@ -1,0 +1,16 @@
+{
+    "proxy": {
+        "enabled": false,
+        "host": "",
+        "port": 8080
+    },
+    "browser": {
+        "headless": false,
+        "window_width": 1920,
+        "window_height": 1080
+    },
+    "registration": {
+        "delay_between_registrations": 5,
+        "max_retries": 3
+    }
+}
