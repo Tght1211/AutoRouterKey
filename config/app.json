@@ -1,13 +1,13 @@
 {
     "browser_path": "",
     "proxy": "http://127.0.0.1:51081",
-    "Bot_protection_wait": 15,
+    "Bot_protection_wait": 30,
     "max_captcha_retries": 3,
-    "concurrent_flows": 1,
-    "max_tasks": 1,
+    "concurrent_flows": 2,
+    "max_tasks": 4,
     "use_incognito_mode": true,
     "enable_oauth2": false,
-    "close_browser_after_registration": false,
+    "close_browser_after_registration": true,
     "client_id": "",
     "redirect_url": "",
     "Scopes": [
@@ -26,5 +26,7 @@
             "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
         ]
     },
-    "info": "此配置已针对macOS优化。建议选用指纹浏览器，最好能过https://www.browserscan.net。如果enable_oauth2为false，则OAuth相关参数可选。浏览器路径留空时会自动检测。"
+    "info": "此配置已针对macOS优化。建议选用指纹浏览器，最好能过https://www.browserscan.net。如果enable_oauth2为false，则OAuth相关参数可选。浏览器路径留空时会自动检测。",
+    "registration_delay": 60,
+    "use_random_delay": true
 }

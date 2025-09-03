@@ -7,9 +7,90 @@ import secrets
 import platform
 from pathlib import Path
 from faker import Faker
-from get_token import get_access_token
+from datetime import datetime
+from .oauth import get_access_token
 from playwright.sync_api import sync_playwright
 from concurrent.futures import ThreadPoolExecutor
+
+def load_config():
+    """加载配置文件"""
+    config_file = Path('config/app.json')
+    try:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"加载配置文件失败: {e}")
+        return {}
+
+def load_accounts_from_json():
+    """从JSON文件加载所有账号数据"""
+    data_dir = Path('data')
+    accounts_json = data_dir / 'accounts.json'
+    
+    if not accounts_json.exists():
+        return []
+    
+    try:
+        with open(accounts_json, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data.get('accounts', [])
+    except Exception as e:
+        print(f"读取JSON文件失败: {e}")
+        return []
+
+def save_account_to_json(email, password, oauth_enabled=False, refresh_token='', access_token='', expire_at=0):
+    """保存账号到JSON文件"""
+    data_dir = Path('data')
+    data_dir.mkdir(exist_ok=True)
+    accounts_json = data_dir / 'accounts.json'
+    
+    # 加载现有账号
+    accounts = load_accounts_from_json()
+    
+    # 生成新的ID
+    max_id = 0
+    if accounts:
+        max_id = max(account.get('id', 0) for account in accounts)
+    new_id = max_id + 1
+    
+    # 检查是否已存在相同的账号
+    for account in accounts:
+        if account['email'] == email:
+            # 更新现有账号
+            account['password'] = password
+            account['oauth_enabled'] = oauth_enabled
+            account['refresh_token'] = refresh_token
+            account['access_token'] = access_token
+            account['expire_at'] = expire_at
+            account['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            break
+    else:
+        # 添加新账号
+        new_account = {
+            'id': new_id,
+            'email': email,
+            'password': password,
+            'status': 'available',
+            'openrouter': False,
+            'oauth_enabled': oauth_enabled,
+            'refresh_token': refresh_token,
+            'access_token': access_token,
+            'expire_at': expire_at,
+            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'notes': ''
+        }
+        accounts.append(new_account)
+    
+    # 保存到JSON文件
+    try:
+        data = {'accounts': accounts}
+        with open(accounts_json, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"保存账号数据失败: {e}")
+        return False
 
 def generate_strong_password(length=16):
 
@@ -53,15 +134,39 @@ def find_browser_on_mac():
             return path
     return None
 
-def OpenBrowser():
+def get_available_browsers():
+    """获取所有可用的浏览器"""
+    browsers = {}
+    browser_paths = {
+        'chrome': '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        'edge': '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+        'chromium': '/Applications/Chromium.app/Contents/MacOS/Chromium'
+    }
+    
+    for name, path in browser_paths.items():
+        if Path(path).exists():
+            browsers[name] = path
+    
+    return browsers
+
+def OpenBrowser(preferred_browser=None):
     try:
         p = sync_playwright().start()
         
-        # 声明全局变量
-        global browser_path, proxy
+        # 加载配置
+        config = load_config()
+        browser_path = config.get('browser_path', '')
+        proxy = config.get('proxy', '')
         
         # 根据操作系统和配置选择浏览器路径
         browser_executable = browser_path
+        
+        # 如果指定了首选浏览器，尝试使用
+        if preferred_browser and not browser_executable:
+            available_browsers = get_available_browsers()
+            if preferred_browser in available_browsers:
+                browser_executable = available_browsers[preferred_browser]
+                print(f"[Info] - 使用指定浏览器: {preferred_browser} ({browser_executable})")
         
         # 如果没有指定浏览器路径且在macOS上，尝试自动查找
         if not browser_executable and platform.system() == 'Darwin':
@@ -94,8 +199,8 @@ def OpenBrowser():
             "--disable-ipc-flooding-protection",  # 禁用IPC洪水保护
         ]
         
-        # 如果启用无痕模式，添加相应参数  
-        global use_incognito_mode
+        # 如果启用无痕模式，添加相应参数
+        use_incognito_mode = config.get('use_incognito_mode', True)
         if use_incognito_mode:
             base_args.append("--incognito")
             print("🕵️ 启用无痕模式以提高人机验证通过率")
@@ -160,6 +265,11 @@ def OpenBrowser():
         return None, None, None
 
 def Outlook_register(page, email, password):
+    # 加载配置
+    config = load_config()
+    bot_protection_wait = config.get('Bot_protection_wait', 30)
+    max_captcha_retries = config.get('max_captcha_retries', 3)
+    enable_oauth2 = config.get('enable_oauth2', False)
 
     fake = Faker()
 
@@ -185,11 +295,11 @@ def Outlook_register(page, email, password):
     try:
 
         page.locator('[aria-label="新建电子邮件"]').type(email,delay=80,timeout=10000)
-        page.locator('[data-testid="primaryButton"]').click(timeout=5000)
+        page.locator('[data-testid="primaryButton"]').click(timeout=5010)
         page.wait_for_timeout(400)
         page.locator('[type="password"]').type(password,delay=60,timeout=10000)
         page.wait_for_timeout(400)
-        page.locator('[data-testid="primaryButton"]').click(timeout=5000)
+        page.locator('[data-testid="primaryButton"]').click(timeout=5010)
         
         page.wait_for_timeout(500)
         page.locator('[name="BirthYear"]').fill(year,timeout=10000)
@@ -211,7 +321,7 @@ def Outlook_register(page, email, password):
             page.wait_for_timeout(400)
             page.locator(f'[role="option"]:text-is("{day}日")').click()
 
-        page.locator('[data-testid="primaryButton"]').click(timeout=5000)
+        page.locator('[data-testid="primaryButton"]').click(timeout=5010)
 
         page.locator('#lastNameInput').type(lastname,delay=120,timeout=10000)
         page.wait_for_timeout(700)
@@ -220,7 +330,7 @@ def Outlook_register(page, email, password):
         if time.time() - start_time < bot_protection_wait:
             page.wait_for_timeout((bot_protection_wait - time.time() + start_time)*1000)
         
-        page.locator('[data-testid="primaryButton"]').click(timeout=5000)
+        page.locator('[data-testid="primaryButton"]').click(timeout=5010)
         page.locator('span > [href="https://go.microsoft.com/fwlink/?LinkID=521839"]').wait_for(state='detached',timeout=22000)
 
         page.wait_for_timeout(400)
@@ -269,12 +379,11 @@ def Outlook_register(page, email, password):
         print(f"[Error: IP] - 加载超时或因触发机器人检测导致按压次数达到最大仍未通过。")
         return False  
     
-    # 使用pathlib处理跨平台路径
-    results_dir = Path('Results')
-    filename = results_dir / 'logged_email.txt' if enable_oauth2 else results_dir / 'unlogged_email.txt'
-    with open(filename, 'a', encoding='utf-8') as f:
-        f.write(f"{email}@outlook.com: {password}\n")
-    print(f'[Success: Email Registration] - {email}@outlook.com: {password}')
+    # 保存账号到JSON文件
+    if save_account_to_json(f"{email}@outlook.com", password, enable_oauth2):
+        print(f'[Success: Email Registration] - {email}@outlook.com: {password}')
+    else:
+        print(f'[Warning] - 保存账号数据失败: {email}@outlook.com')
 
     if not enable_oauth2:
         return True
@@ -282,7 +391,7 @@ def Outlook_register(page, email, password):
     try:
         page.locator('[data-testid="secondaryButton"]').click(timeout=20000) 
         button = page.locator('[data-testid="secondaryButton"]')
-        button.wait_for(timeout=5000)
+        button.wait_for(timeout=5010)
 
     except:
 
@@ -294,11 +403,11 @@ def Outlook_register(page, email, password):
         page.wait_for_timeout(random.randint(1600,2000))
         button.click(timeout=6000)
         button = page.locator('[data-testid="secondaryButton"]')
-        button.wait_for(timeout=5000)
+        button.wait_for(timeout=5010)
         page.wait_for_timeout(random.randint(1600,2000))
         button.click(timeout=6000)
         button = page.locator('[data-testid="secondaryButton"]')
-        button.wait_for(timeout=5000)
+        button.wait_for(timeout=5010)
         page.wait_for_timeout(3000)
         button.click(timeout=6000)
 
@@ -317,13 +426,28 @@ def Outlook_register(page, email, password):
         print(f'[Error: Timeout] - 邮箱未初始化，无法正常收件。')
         return False
 
-def process_single_flow():
+def process_single_flow(task_id=0):
+    # 加载配置
+    config = load_config()
+    enable_oauth2 = config.get('enable_oauth2', False)
+    close_browser_after_registration = config.get('close_browser_after_registration', True)
+    
+    # 根据任务ID选择不同的浏览器
+    available_browsers = get_available_browsers()
+    browser_list = list(available_browsers.keys())
+    
+    if browser_list:
+        # 轮流使用不同的浏览器
+        preferred_browser = browser_list[task_id % len(browser_list)]
+        print(f"[Info] - 任务 {task_id + 1} 使用浏览器: {preferred_browser}")
+    else:
+        preferred_browser = None
 
     try:
         browser = None
         p = None
         context = None
-        browser, p, context = OpenBrowser()
+        browser, p, context = OpenBrowser(preferred_browser)
         
         # 检查浏览器是否成功启动
         if browser is None or p is None or context is None:
@@ -340,7 +464,7 @@ def process_single_flow():
             if not close_browser_after_registration:
                 print("[Info] - 注册完成，保持浏览器开启状态以便后续操作")
                 # 不关闭浏览器，保持页面开启并返回
-                page.wait_for_timeout(5000)  # 等待5秒确保页面加载完成
+                page.wait_for_timeout(5010)  # 等待5秒确保页面加载完成
                 return True
 
             return True
@@ -351,17 +475,17 @@ def process_single_flow():
         token_result = get_access_token(page, email)
         if token_result[0]:
             refresh_token, access_token, expire_at =  token_result
-            # 使用pathlib处理跨平台路径
-            token_file = Path('Results') / 'outlook_token.txt'
-            with open(token_file, 'a', encoding='utf-8') as f2:
-                f2.write(email + "@outlook.com---" + password + "---" + refresh_token + "---" + access_token  + "---" + str(expire_at) + "\n") 
-            print(f'[Success: TokenAuth] - {email}@outlook.com')
+            # 更新JSON文件中的token信息
+            if save_account_to_json(f"{email}@outlook.com", password, True, refresh_token, access_token, expire_at):
+                print(f'[Success: TokenAuth] - {email}@outlook.com')
+            else:
+                print(f'[Warning] - 保存token数据失败: {email}@outlook.com')
             
             # 根据配置决定是否关闭浏览器
             if not close_browser_after_registration:
                 print("[Info] - 注册完成，保持浏览器开启状态以便后续操作")
                 # 不关闭浏览器，保持页面开启并返回
-                page.wait_for_timeout(5000)  # 等待5秒确保页面加载完成
+                page.wait_for_timeout(5010)  # 等待5秒确保页面加载完成
                 return True
                 
             return True
@@ -394,6 +518,11 @@ def process_single_flow():
             print("[Info] - 根据配置，浏览器将保持开启状态")
 
 def main(concurrent_flows=1, max_tasks=1):
+    # 加载配置
+    config = load_config()
+    close_browser_after_registration = config.get('close_browser_after_registration', True)
+    registration_delay = config.get('registration_delay', 60)
+    use_random_delay = config.get('use_random_delay', True)
     
     task_counter = 0  
     succeeded_tasks = 0 
@@ -420,8 +549,16 @@ def main(concurrent_flows=1, max_tasks=1):
                 running_futures.remove(future)
             
             while len(running_futures) < concurrent_flows and task_counter < max_tasks:
-                time.sleep(0.2)
-                new_future = executor.submit(process_single_flow)
+                if task_counter > 0:  # 第一个任务不延迟
+                    # 添加注册间隔延迟
+                    if use_random_delay:
+                        delay_time = random.randint(registration_delay//2, registration_delay)
+                    else:
+                        delay_time = registration_delay
+                    print(f"[Info] - 等待 {delay_time} 秒后启动下一个注册任务...")
+                    time.sleep(delay_time)
+                
+                new_future = executor.submit(process_single_flow, task_counter)
                 running_futures.add(new_future)
                 task_counter += 1
 
@@ -441,27 +578,15 @@ def main(concurrent_flows=1, max_tasks=1):
                 print("[Info] - 程序被用户中断，正在关闭...")
 
 if __name__ == '__main__':
+    # 确保data/results目录存在
+    results_dir = Path("data/results")
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    # 加载配置
+    config = load_config()
     
-
-    # 使用pathlib处理配置文件
-    config_file = Path('config.json')
-    with open(config_file, 'r', encoding='utf-8') as f:
-        data = json.load(f) 
-
-    # 确保Results目录存在
-    results_dir = Path("Results")
-    results_dir.mkdir(exist_ok=True)
-
-    browser_path = data['browser_path']
-    bot_protection_wait = data['Bot_protection_wait']
-    max_captcha_retries = data['max_captcha_retries']
-    proxy = data['proxy']
-    enable_oauth2 = data['enable_oauth2']
-    use_incognito_mode = data.get('use_incognito_mode', True)  # 默认启用无痕模式
-    close_browser_after_registration = data.get('close_browser_after_registration', True)  # 默认注册后关闭浏览器
     # 从配置文件读取并发数和任务数
-    concurrent_flows = data.get('concurrent_flows', 1)
-    max_tasks = data.get('max_tasks', 1)
-
+    concurrent_flows = config.get('concurrent_flows', 1)
+    max_tasks = config.get('max_tasks', 1)
 
     main(concurrent_flows, max_tasks)

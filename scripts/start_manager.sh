@@ -12,7 +12,7 @@ else
         source venv/bin/activate
         echo "✅ 虚拟环境已激活"
     else
-        echo "❌ 未找到虚拟环境，请先运行 ./install_macos.sh"
+        echo "❌ 未找到虚拟环境，请先运行 ./install.sh"
         exit 1
     fi
 fi
@@ -29,29 +29,23 @@ fi
 
 # 检查账号文件
 echo "📄 检查账号文件..."
-if [ ! -d "Results" ]; then
-    echo "📁 创建 Results 目录..."
-    mkdir -p Results
+if [ ! -d "data/results" ]; then
+    echo "📁 创建 data/results 目录..."
+    mkdir -p data/results
 fi
 
-if [ ! -f "Results/unlogged_email.txt" ]; then
-    echo "📝 创建示例账号文件..."
-    cat > Results/unlogged_email.txt << EOF
-nqtfooyhzjxip@outlook.com: HvWKO@HCOns7K
-jwzowunvnustc@outlook.com: Zq0ZA16zK!P0
-htfcctvg37qmix@outlook.com: pIUd^ee%qV9
-cxzuvhnj2irevx@outlook.com: 2dRmB5WoWua*y
-pdtbnecorclzb@outlook.com: yXGNdXd8de*M
-bhdamuovtd03i@outlook.com: tVDwvQx6w%Og4
-mwosoojtxnfz@outlook.com: K6WM^ixzyQGVc
-xqpthgatdrckmm@outlook.com: 6Dbg#*fM0Ajdl
-EOF
+if [ ! -f "data/accounts.json" ]; then
+    echo "⚠️  未找到 data/accounts.json 文件"
+    echo "💡 请先运行注册程序生成账号数据"
+else
+    account_count=$(python3 -c "import json; data=json.load(open('data/accounts.json')); print(len(data.get('accounts', [])))" 2>/dev/null || echo "未知")
+    echo "✅ 发现账号数据文件，共 $account_count 个账号"
 fi
 
 # 启动服务器
 echo "🌐 启动 Web 服务器..."
-echo "📍 管理界面: http://localhost:5000"
+echo "📍 管理界面: http://localhost:5010"
 echo "📍 按 Ctrl+C 停止服务器"
 echo ""
 
-python3 account_server.py
+python3 main.py web

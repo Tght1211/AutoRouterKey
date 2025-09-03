@@ -58,7 +58,7 @@ echo "🔧 检查网络设置..."
 if command -v networksetup &> /dev/null; then
     proxy_info=$(networksetup -getwebproxy "Wi-Fi" 2>/dev/null)
     if echo "$proxy_info" | grep -q "Enabled: Yes"; then
-        echo "📡 检测到系统代理设置，可能需要在config.json中配置相应代理。"
+        echo "📡 检测到系统代理设置，可能需要在config/app.json中配置相应代理。"
     fi
 fi
 
@@ -66,9 +66,9 @@ echo ""
 echo "🎉 安装完成！"
 echo ""
 echo "📋 使用说明:"
-echo "1. 配置 config.json 文件（代理、浏览器路径等）"
+echo "1. 配置 config/app.json 文件（代理、浏览器路径等）"
 echo "2. 激活虚拟环境: source venv/bin/activate"
-echo "3. 运行程序: python3 OutlookRegister.py"
+echo "3. 运行程序: python3 main.py register"
 echo ""
 echo "💡 提示:"
 echo "- 浏览器路径可留空，程序会自动检测"

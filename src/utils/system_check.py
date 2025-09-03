@@ -120,14 +120,14 @@ def check_playwright_browsers():
 def check_config_file():
     """检查配置文件"""
     print("⚙️ 检查配置文件...")
-    config_file = Path("config.json")
+    config_file = Path("config/app.json")
     if config_file.exists():
-        print("   ✅ config.json 存在")
+        print("   ✅ config/app.json 存在")
         try:
             import json
             with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            print("   ✅ config.json 格式正确")
+            print("   ✅ config/app.json 格式正确")
             
             # 检查关键配置项
             if 'proxy' in config and config['proxy']:
@@ -137,22 +137,22 @@ def check_config_file():
             
             return True
         except json.JSONDecodeError:
-            print("   ❌ config.json 格式错误")
+            print("   ❌ config/app.json 格式错误")
             return False
     else:
-        print("   ❌ config.json 不存在")
+        print("   ❌ config/app.json 不存在")
         return False
 
 def check_results_directory():
     """检查结果目录"""
     print("📁 检查结果目录...")
-    results_dir = Path("Results")
+    results_dir = Path("data/results")
     if results_dir.exists():
-        print("   ✅ Results目录存在")
+        print("   ✅ data/results目录存在")
     else:
-        print("   📁 创建Results目录...")
-        results_dir.mkdir(exist_ok=True)
-        print("   ✅ Results目录已创建")
+        print("   📁 创建data/results目录...")
+        results_dir.mkdir(parents=True, exist_ok=True)
+        print("   ✅ data/results目录已创建")
     return True
 
 def main():

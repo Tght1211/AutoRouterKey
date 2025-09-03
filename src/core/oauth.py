@@ -37,7 +37,7 @@ def handle_oauth2_form(page,email):
     try:
 
         page.locator('[name="loginfmt"]').fill(f'{email}@outlook.com',timeout=20000)
-        page.locator('#idSIButton9').click(timeout=5000)
+        page.locator('#idSIButton9').click(timeout=5010)
 
         # 之前是要的，现在不确定了，暂时放着吧。
         page.locator('[data-testid="secondaryButton"]').click(timeout=3000) 
@@ -65,7 +65,7 @@ def handle_oauth2_form(page,email):
 
 def get_access_token(page, email):
 
-    with open('config.json', 'r', encoding='utf-8') as f:
+    with open('config/app.json', 'r', encoding='utf-8') as f:
         data = json.load(f) 
     SCOPES = data['Scopes']
     client_id = data['client_id']
@@ -103,7 +103,7 @@ def get_access_token(page, email):
                     return False, False, False
                 continue
 
-    with page.expect_response(lambda response: redirect_url in response.url,timeout=50000) as response_info:
+    with page.expect_response(lambda response: redirect_url in response.url,timeout=50100) as response_info:
 
         handle_oauth2_form(page, email)
 

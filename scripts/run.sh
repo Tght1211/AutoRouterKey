@@ -8,7 +8,7 @@ echo "🍎 启动 macOS Outlook 注册机..."
 
 # 检查虚拟环境
 if [ ! -d "venv" ]; then
-    echo "❌ 错误: 虚拟环境不存在。请先运行 ./install_macos.sh 进行安装。"
+    echo "❌ 错误: 虚拟环境不存在。请先运行 ./install.sh 进行安装。"
     exit 1
 fi
 
@@ -17,15 +17,15 @@ echo "📦 激活虚拟环境..."
 source venv/bin/activate
 
 # 检查配置文件
-if [ ! -f "config.json" ]; then
-    echo "❌ 错误: config.json 配置文件不存在。"
+if [ ! -f "config/app.json" ]; then
+    echo "❌ 错误: config/app.json 配置文件不存在。"
     exit 1
 fi
 
-# 检查Results目录
-if [ ! -d "Results" ]; then
-    echo "📁 创建Results目录..."
-    mkdir -p Results
+# 检查data/results目录
+if [ ! -d "data/results" ]; then
+    echo "📁 创建data/results目录..."
+    mkdir -p data/results
 fi
 
 # 显示系统信息
@@ -60,17 +60,18 @@ echo "   提示: 按 Ctrl+C 可以停止程序"
 echo ""
 
 # 运行主程序
-python OutlookRegister.py
+python main.py register
 
 # 显示结果
 echo ""
 echo "📊 运行完成！"
-if [ -f "Results/logged_email.txt" ] || [ -f "Results/unlogged_email.txt" ]; then
-    echo "📁 结果文件保存在 Results/ 目录中:"
-    ls -la Results/
+if [ -f "data/accounts.json" ]; then
+    echo "📁 账号数据保存在 data/accounts.json 中"
+    account_count=$(python3 -c "import json; data=json.load(open('data/accounts.json')); print(len(data.get('accounts', [])))" 2>/dev/null || echo "未知")
+    echo "📊 总账号数: $account_count"
 else
-    echo "⚠️  未发现输出文件，请检查程序运行日志"
+    echo "⚠️  未发现账号数据文件，请检查程序运行日志"
 fi
 
 echo ""
-echo "💡 如需再次运行，请执行: ./run_macos.sh"
+echo "💡 如需再次运行，请执行: ./scripts/run.sh"
