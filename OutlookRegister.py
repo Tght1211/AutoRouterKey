@@ -117,7 +117,7 @@ def OpenBrowser():
         
         # 创建新的隐私浏览上下文
         context = browser.new_context(
-            viewport={'width': 1920, 'height': 1080},
+            viewport={'width': 1200, 'height': 800},
             user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             locale='zh-CN,zh;q=0.9,en;q=0.8',
             timezone_id='Asia/Shanghai',

@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outlook 账号管理器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .stats {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4facfe;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #4facfe;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3d8bfe;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+
+        .accounts-table {
+            padding: 30px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 15px 20px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .email-cell {
+            font-family: 'Courier New', monospace;
+            color: #0066cc;
+            position: relative;
+        }
+
+        .password-cell {
+            font-family: 'Courier New', monospace;
+            position: relative;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            margin-left: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .copy-btn.copied {
+            color: #28a745;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-available {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-registered {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-used {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .openrouter-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #4facfe;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(26px);
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-outline-primary {
+            background: transparent;
+            color: #4facfe;
+            border: 1px solid #4facfe;
+        }
+
+        .btn-outline-primary:hover {
+            background: #4facfe;
+            color: white;
+        }
+
+        .btn-outline-danger {
+            background: transparent;
+            color: #dc3545;
+            border: 1px solid #dc3545;
+        }
+
+        .btn-outline-danger:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            color: #495057;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .stats {
+                flex-direction: column;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-box {
+                min-width: auto;
+            }
+            
+            .accounts-table {
+                padding: 15px;
+            }
+            
+            th, td {
+                padding: 10px;
+            }
+            
+            .actions-cell {
+                flex-direction: column;
+                gap: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📧 Outlook 账号管理器</h1>
+            <p>高效管理你的 Outlook 账号，支持快捷复制、状态标记和 OpenRouter 注册管理</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="totalAccounts">0</div>
+                <div class="stat-label">总账号数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="availableAccounts">0</div>
+                <div class="stat-label">可用账号</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="registeredAccounts">0</div>
+                <div class="stat-label">已注册 OpenRouter</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="usedAccounts">0</div>
+                <div class="stat-label">已使用账号</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="refreshAccounts()">
+                🔄 刷新账号
+            </button>
+            <button class="btn btn-success" onclick="showAddModal()">
+                ➕ 添加账号
+            </button>
+            <button class="btn btn-warning" onclick="exportAccounts()">
+                📤 导出账号
+            </button>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索账号或密码..." onkeyup="filterAccounts()">
+                <span class="search-icon">🔍</span>
+            </div>
+        </div>
+
+        <div class="accounts-table">
+            <div class="table-container">
+                <table id="accountsTable">
+                    <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th>邮箱账号</th>
+                            <th>密码</th>
+                            <th>状态</th>
+                            <th>OpenRouter</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accountsBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div id="toast" class="toast"></div>
+
+    <!-- 添加账号模态框 -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <h3>添加新账号</h3>
+            <div class="form-group">
+                <label for="newEmail">邮箱账号:</label>
+                <input type="email" id="newEmail" placeholder="example@outlook.com">
+            </div>
+            <div class="form-group">
+                <label for="newPassword">密码:</label>
+                <input type="text" id="newPassword" placeholder="账号密码">
+            </div>
+            <div class="form-group">
+                <label for="newStatus">状态:</label>
+                <select id="newStatus">
+                    <option value="available">可用</option>
+                    <option value="registered">已注册 OpenRouter</option>
+                    <option value="used">已使用</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideAddModal()">取消</button>
+                <button class="btn btn-primary" onclick="addAccount()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 账号数据存储
+        let accounts = [];
+        let nextId = 1;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAccounts();
+            refreshAccounts();
+        });
+
+        // 从 localStorage 加载账号数据
+        function loadAccounts() {
+            const saved = localStorage.getItem('outlookAccounts');
+            if (saved) {
+                accounts = JSON.parse(saved);
+                nextId = Math.max(...accounts.map(a => a.id), 0) + 1;
+            }
+        }
+
+        // 保存账号数据到 localStorage
+        function saveAccounts() {
+            localStorage.setItem('outlookAccounts', JSON.stringify(accounts));
+        }
+
+        // 从后端API读取账号
+        async function refreshAccounts() {
+            try {
+                const response = await fetch('/api/accounts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    accounts = data.data;
+                    renderAccounts();
+                    updateStats();
+                    showToast('账号数据刷新成功！');
+                } else {
+                    throw new Error(data.error || '获取账号失败');
+                }
+            } catch (error) {
+                console.error('刷新账号失败:', error);
+                // 如果后端不可用，尝试加载本地数据
+                if (accounts.length === 0) {
+                    loadSampleAccounts();
+                    renderAccounts();
+                    updateStats();
+                }
+                showToast('连接服务器失败，使用本地数据', 'warning');
+            }
+        }
+
+        // 加载示例账号数据
+        function loadSampleAccounts() {
+            const sampleData = [
+                'nqtfooyhzjxip@outlook.com: HvWKO@HCOns7K',
+                'jwzowunvnustc@outlook.com: Zq0ZA16zK!P0',
+                'htfcctvg37qmix@outlook.com: pIUd^ee%qV9',
+                'cxzuvhnj2irevx@outlook.com: 2dRmB5WoWua*y',
+                'pdtbnecorclzb@outlook.com: yXGNdXd8de*M',
+                'bhdamuovtd03i@outlook.com: tVDwvQx6w%Og4',
+                'mwosoojtxnfz@outlook.com: K6WM^ixzyQGVc',
+                'xqpthgatdrckmm@outlook.com: 6Dbg#*fM0Ajdl'
+            ];
+
+            sampleData.forEach(line => {
+                if (line.trim()) {
+                    const [email, password] = line.split(': ');
+                    if (email && password) {
+                        accounts.push({
+                            id: nextId++,
+                            email: email.trim(),
+                            password: password.trim(),
+                            status: 'available',
+                            openrouter: false,
+                            createdAt: new Date().toLocaleDateString('zh-CN')
+                        });
+                    }
+                }
+            });
+            saveAccounts();
+        }
+
+        // 渲染账号表格
+        function renderAccounts() {
+            const tbody = document.getElementById('accountsBody');
+            tbody.innerHTML = '';
+
+            accounts.forEach((account, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td class="email-cell">
+                        ${account.email}
+                        <button class="copy-btn" onclick="copyToClipboard('${account.email}', this)" title="复制邮箱">
+                            📋
+                        </button>
+                    </td>
+                    <td class="password-cell">
+                        <span class="password-text">${account.password}</span>
+                        <button class="copy-btn" onclick="copyToClipboard('${account.password}', this)" title="复制密码">
+                            📋
+                        </button>
+                    </td>
+                    <td>
+                        <select class="status-select" onchange="updateAccountStatus(${account.id}, this.value)">
+                            <option value="available" ${account.status === 'available' ? 'selected' : ''}>可用</option>
+                            <option value="registered" ${account.status === 'registered' ? 'selected' : ''}>已注册 OpenRouter</option>
+                            <option value="used" ${account.status === 'used' ? 'selected' : ''}>已使用</option>
+                        </select>
+                    </td>
+                    <td>
+                        <div class="openrouter-toggle">
+                            <div class="toggle-switch ${account.openrouter ? 'active' : ''}" 
+                                 onclick="toggleOpenRouter(${account.id})"></div>
+                            <span>${account.openrouter ? '已注册' : '未注册'}</span>
+                        </div>
+                    </td>
+                    <td>${account.createdAt}</td>
+                    <td class="actions-cell">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editAccount(${account.id})">编辑</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount(${account.id})">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 更新统计数据
+        function updateStats() {
+            document.getElementById('totalAccounts').textContent = accounts.length;
+            document.getElementById('availableAccounts').textContent = 
+                accounts.filter(a => a.status === 'available').length;
+            document.getElementById('registeredAccounts').textContent = 
+                accounts.filter(a => a.openrouter).length;
+            document.getElementById('usedAccounts').textContent = 
+                accounts.filter(a => a.status === 'used').length;
+        }
+
+        // 复制到剪贴板
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('已复制到剪贴板！');
+                button.classList.add('copied');
+                button.textContent = '✅';
+                setTimeout(() => {
+                    button.classList.remove('copied');
+                    button.textContent = '📋';
+                }, 2000);
+            }).catch(err => {
+                showToast('复制失败，请手动复制', 'error');
+            });
+        }
+
+        // 显示通知
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 更新账号状态
+        async function updateAccountStatus(id, status) {
+            try {
+                const response = await fetch(`/api/accounts/${id}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: status })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const account = accounts.find(a => a.id === id);
+                    if (account) {
+                        account.status = status;
+                        updateStats();
+                        showToast('状态已更新');
+                    }
+                } else {
+                    throw new Error(data.error || '更新失败');
+                }
+            } catch (error) {
+                console.error('更新状态失败:', error);
+                // 降级到本地更新
+                const account = accounts.find(a => a.id === id);
+                if (account) {
+                    account.status = status;
+                    saveAccounts();
+                    updateStats();
+                    showToast('状态已更新（本地）', 'warning');
+                }
+            }
+        }
+
+        // 切换 OpenRouter 状态
+        async function toggleOpenRouter(id) {
+            const account = accounts.find(a => a.id === id);
+            if (!account) return;
+            
+            const newStatus = !account.openrouter;
+            
+            try {
+                const response = await fetch(`/api/accounts/${id}/openrouter`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ openrouter: newStatus })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    account.openrouter = newStatus;
+                    renderAccounts();
+                    updateStats();
+                    showToast(`OpenRouter 状态已${newStatus ? '启用' : '禁用'}`);
+                } else {
+                    throw new Error(data.error || '更新失败');
+                }
+            } catch (error) {
+                console.error('更新OpenRouter状态失败:', error);
+                // 降级到本地更新
+                account.openrouter = newStatus;
+                saveAccounts();
+                renderAccounts();
+                updateStats();
+                showToast(`OpenRouter 状态已${newStatus ? '启用' : '禁用'}（本地）`, 'warning');
+            }
+        }
+
+        // 搜索过滤
+        function filterAccounts() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#accountsBody tr');
+            
+            rows.forEach(row => {
+                const email = row.cells[1].textContent.toLowerCase();
+                const password = row.cells[2].textContent.toLowerCase();
+                
+                if (email.includes(searchTerm) || password.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // 显示添加模态框
+        function showAddModal() {
+            document.getElementById('addModal').style.display = 'block';
+        }
+
+        // 隐藏添加模态框
+        function hideAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+            document.getElementById('newEmail').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('newStatus').value = 'available';
+        }
+
+        // 添加新账号
+        function addAccount() {
+            const email = document.getElementById('newEmail').value.trim();
+            const password = document.getElementById('newPassword').value.trim();
+            const status = document.getElementById('newStatus').value;
+
+            if (!email || !password) {
+                showToast('请填写完整的邮箱和密码', 'error');
+                return;
+            }
+
+            accounts.push({
+                id: nextId++,
+                email: email,
+                password: password,
+                status: status,
+                openrouter: false,
+                createdAt: new Date().toLocaleDateString('zh-CN')
+            });
+
+            saveAccounts();
+            renderAccounts();
+            updateStats();
+            hideAddModal();
+            showToast('账号添加成功！');
+        }
+
+        // 删除账号
+        function deleteAccount(id) {
+            if (confirm('确定要删除这个账号吗？')) {
+                accounts = accounts.filter(a => a.id !== id);
+                saveAccounts();
+                renderAccounts();
+                updateStats();
+                showToast('账号已删除');
+            }
+        }
+
+        // 编辑账号
+        function editAccount(id) {
+            const account = accounts.find(a => a.id === id);
+            if (account) {
+                document.getElementById('newEmail').value = account.email;
+                document.getElementById('newPassword').value = account.password;
+                document.getElementById('newStatus').value = account.status;
+                showAddModal();
+                
+                // 临时修改添加按钮为更新按钮
+                const addBtn = document.querySelector('#addModal .btn-primary');
+                addBtn.textContent = '更新';
+                addBtn.onclick = function() {
+                    account.email = document.getElementById('newEmail').value.trim();
+                    account.password = document.getElementById('newPassword').value.trim();
+                    account.status = document.getElementById('newStatus').value;
+                    
+                    saveAccounts();
+                    renderAccounts();
+                    updateStats();
+                    hideAddModal();
+                    showToast('账号更新成功！');
+                    
+                    // 恢复添加按钮
+                    addBtn.textContent = '添加';
+                    addBtn.onclick = addAccount;
+                };
+            }
+        }
+
+        // 导出账号
+        async function exportAccounts() {
+            try {
+                const response = await fetch('/api/accounts/export');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const blob = new Blob([data.data], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = data.filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showToast('账号导出成功！');
+                } else {
+                    throw new Error(data.error || '导出失败');
+                }
+            } catch (error) {
+                console.error('导出失败:', error);
+                // 降级到本地导出
+                const data = accounts.map(a => `${a.email}: ${a.password}`).join('\n');
+                const blob = new Blob([data], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `outlook_accounts_${new Date().toISOString().split('T')[0]}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showToast('账号导出成功（本地）', 'warning');
+            }
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('addModal').onclick = function(e) {
+            if (e.target === this) {
+                hideAddModal();
+            }
+        };
+    </script>
+</body>
+</html>
