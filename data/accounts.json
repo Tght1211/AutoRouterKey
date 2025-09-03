@@ -117,13 +117,13 @@
       "email": "odrhnypwbxec@outlook.com",
       "password": "cYgZ0Uz8Q%iRUxY",
       "status": "available",
-      "openrouter": false,
+      "openrouter": true,
       "oauth_enabled": false,
       "refresh_token": "",
       "access_token": "",
       "expire_at": 0,
       "created_at": "2025-09-03 11:40:22",
-      "updated_at": "2025-09-03 11:40:22",
+      "updated_at": "2025-09-03 13:13:47",
       "notes": ""
     },
     {
