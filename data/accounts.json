@@ -159,13 +159,13 @@
       "email": "rrvcx0sbcann@outlook.com",
       "password": "fZvZ9#bUvA0",
       "status": "available",
-      "openrouter": false,
+      "openrouter": true,
       "oauth_enabled": false,
       "refresh_token": "",
       "access_token": "",
       "expire_at": 0,
       "created_at": "2025-09-03 11:45:09",
-      "updated_at": "2025-09-03 11:45:09",
+      "updated_at": "2025-09-06 16:40:28",
       "notes": ""
     },
     {
