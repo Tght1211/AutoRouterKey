@@ -297,75 +297,179 @@ def _click_next_button(page, timeout=10000):
     btn.click(timeout=timeout)
 
 
-def _solve_captcha(page):
-    """等待通过 hsprotect 按压验证码，返回 True 表示通过。
-    
-    输出按钮坐标供 AI 浏览器工具使用。
-    按压策略：长按 8-12 秒，期间偶尔短暂松开（50-150ms）再按回去，
-    进度条满了立即松开，不要多按。
-    """
-    try:
-        page.wait_for_event(
-            "request",
-            lambda req: req.url.startswith("blob:https://iframe.hsprotect.net/"),
-            timeout=22000,
-        )
-    except:
-        if page.get_by_text('一些异常活动').count() > 0:
-            print("[Error: Rate limit] - IP 注册频率过快。")
-            return False
-        print("[Info] - 未检测到 hsprotect 验证码，可能已跳过")
-        return True
-
-    page.wait_for_timeout(1500)
-
-    # 尝试获取 #px-captcha 按钮坐标
-    btn_info = ""
+def _find_captcha_element(page):
+    """在 hsprotect iframe 中查找 #px-captcha 元素，返回 (element, frame) 或 (None, None)"""
     for frame in page.frames:
         if 'hsprotect' in frame.url:
             try:
                 el = frame.locator('#px-captcha')
                 if el.count() > 0 and el.is_visible():
-                    box = el.bounding_box()
-                    if box:
-                        cx = int(box['x'] + box['width'] / 2)
-                        cy = int(box['y'] + box['height'] / 2)
-                        btn_info = f"按钮坐标: x={cx}, y={cy}, 宽={int(box['width'])}, 高={int(box['height'])}"
+                    return el, frame
             except:
                 pass
+    return None, None
+
+
+def _captcha_still_active(page):
+    """检查验证码是否仍然显示"""
+    el, _ = _find_captcha_element(page)
+    return el is not None
+
+
+def _do_human_press(page, cx, cy, max_hold_s=14):
+    """模拟真人按压：按下 → 偶尔松手再按回 → 观察进度条 → 满了立刻松。
+    
+    关键行为：
+    - 按住过程中每 2-4 秒随机松手 80-200ms 再按回去
+    - 按压期间极微小抖动（±1px）
+    - 持续检测验证码元素是否消失（进度条完成的信号）
+    - 一旦检测到消失立刻松手
+    """
+    # 先移到附近再精确移入
+    page.mouse.move(
+        cx + random.randint(-50, 50),
+        cy + random.randint(-25, 25),
+        steps=random.randint(6, 12),
+    )
+    page.wait_for_timeout(random.randint(300, 700))
+    page.mouse.move(cx, cy, steps=random.randint(10, 22))
+    page.wait_for_timeout(random.randint(150, 400))
+
+    page.mouse.down()
+    is_pressing = True
+
+    total_elapsed = 0
+    next_release_at = random.randint(2000, 4000)
+
+    try:
+        while total_elapsed < max_hold_s * 1000:
+            tick = random.randint(150, 350)
+            page.wait_for_timeout(tick)
+            total_elapsed += tick
+
+            # 极微小抖动
+            if random.random() < 0.3 and is_pressing:
+                page.mouse.move(
+                    cx + random.uniform(-0.8, 0.8),
+                    cy + random.uniform(-0.5, 0.5),
+                )
+
+            # 随机松手再按回去
+            if is_pressing and total_elapsed >= next_release_at:
+                release_ms = random.randint(60, 180)
+                page.mouse.up()
+                is_pressing = False
+                page.wait_for_timeout(release_ms)
+                total_elapsed += release_ms
+
+                # 按回去前微移一点
+                page.mouse.move(
+                    cx + random.uniform(-0.5, 0.5),
+                    cy + random.uniform(-0.3, 0.3),
+                )
+                page.mouse.down()
+                is_pressing = True
+                next_release_at = total_elapsed + random.randint(1800, 3500)
+
+            # 每 ~1 秒检测一次验证码是否已完成
+            if total_elapsed % 1000 < tick and total_elapsed > 3000:
+                if not _captcha_still_active(page):
+                    break
+
+    finally:
+        if is_pressing:
+            page.mouse.up()
+
+
+def _solve_captcha(page, max_attempts=7):
+    """自动模拟真人按压通过 hsprotect 验证码。"""
+    config = load_config()
+    max_attempts = config.get('max_captcha_retries', max_attempts)
+
+    # 等待验证码加载（hsprotect 或 enforcementFrame）
+    # enforcementFrame 有时先出现，hsprotect 会在其内部加载
+    captcha_loaded = False
+    for wait_round in range(15):
+        try:
+            page.wait_for_event(
+                "request",
+                lambda req: req.url.startswith("blob:https://iframe.hsprotect.net/"),
+                timeout=3000,
+            )
+            captcha_loaded = True
+            break
+        except:
+            pass
+
+        # 检查是否有 enforcementFrame（FunCaptcha 拼图），等待它转为 hsprotect
+        if page.locator('iframe#enforcementFrame').count() > 0:
+            print(f"[CAPTCHA] - 检测到 enforcementFrame，等待 hsprotect 加载... ({wait_round + 1}/15)")
+            page.wait_for_timeout(2000)
+            continue
+
+        # 检查 hsprotect iframe 是否已直接出现
+        el, _ = _find_captcha_element(page)
+        if el:
+            captcha_loaded = True
             break
 
-    print("=" * 50)
-    print("[CAPTCHA] - 检测到验证码，需要在浏览器中长按按钮！")
-    if btn_info:
-        print(f"[CAPTCHA] - {btn_info}")
-    print("[CAPTCHA] - 等待操作，最多 120 秒...")
-    print("[CAPTCHA] - 提示: 长按 8-12 秒，偶尔短暂松开再按回，进度条满了立即松开")
-    print("=" * 50)
+        if page.get_by_text('一些异常活动').count() > 0:
+            print("[Error: Rate limit] - IP 注册频率过快。")
+            return False
 
-    for _ in range(60):
-        page.wait_for_timeout(2000)
+        # 检查页面是否已经跳过了验证码
+        url = page.url
+        if "outlook.live.com" in url or "microsoft.com/zh-cn" in url:
+            print("[Info] - 验证码已跳过，页面已跳转")
+            return True
+
+        page.wait_for_timeout(1000)
+
+    if not captcha_loaded:
+        # 最后检查一次是否有可按的元素
+        el, _ = _find_captcha_element(page)
+        if not el:
+            if page.get_by_text('一些异常活动').count() > 0:
+                print("[Error: Rate limit] - IP 注册频率过快。")
+                return False
+            print("[Info] - 未检测到可按压的验证码")
+            return True
+
+    page.wait_for_timeout(1500)
+
+    for attempt in range(1, max_attempts + 1):
+        el, frame = _find_captcha_element(page)
+        if not el:
+            print("[CAPTCHA] - 验证码已通过 ✓")
+            return True
+
+        box = el.bounding_box()
+        if not box:
+            print(f"[CAPTCHA] - 第 {attempt} 次: 无法获取按钮位置，等待重试...")
+            page.wait_for_timeout(2000)
+            continue
+
+        cx = box['x'] + box['width'] / 2 + random.uniform(-3, 3)
+        cy = box['y'] + box['height'] / 2 + random.uniform(-2, 2)
+        hold_s = random.uniform(8, 14)
+
+        print(f"[CAPTCHA] - 第 {attempt} 次按压 (x={int(cx)}, y={int(cy)}, 持续≈{hold_s:.1f}s)")
+
+        _do_human_press(page, cx, cy, max_hold_s=hold_s)
+        page.wait_for_timeout(1500)
 
         if page.get_by_text('一些异常活动').count() > 0:
             print("[Error: Rate limit] - 通过验证码但 IP 注册频率过快。")
             return False
 
-        has_captcha = False
-        for frame in page.frames:
-            if 'hsprotect' in frame.url:
-                try:
-                    el = frame.locator('#px-captcha')
-                    if el.count() > 0 and el.is_visible():
-                        has_captcha = True
-                except:
-                    pass
-                break
-
-        if not has_captcha:
+        if not _captcha_still_active(page):
             print("[CAPTCHA] - 验证码已通过 ✓")
             return True
 
-    print("[Error] - 等待超时，验证码未通过。")
+        # 等验证码重置
+        page.wait_for_timeout(random.randint(1000, 2500))
+
+    print("[Error] - 按压次数达到上限仍未通过。")
     return False
 
 
@@ -519,10 +623,6 @@ def Outlook_register(page, email, password):
             print("[Error: IP] - 当前 IP 注册频率过快。")
             return False
 
-        if page.locator('iframe#enforcementFrame').count() > 0:
-            print("[Error: FunCaptcha] - 验证码类型错误，非按压验证码。")
-            return False
-
         if not _solve_captcha(page):
             return False
 
@@ -530,110 +630,22 @@ def Outlook_register(page, email, password):
         print(f"[Error] - 验证码处理失败: {e}")
         return False
 
-    # ── 步骤 4：跳过注册后的向导页面，直到进入邮箱 ──
-    page.wait_for_timeout(3000)
+    # ── 步骤 4：登录验证（注册后必须登录成功才算有效） ──
+    full_email = f"{email}@outlook.com"
+    print(f"[Info] - 验证码通过，开始登录验证 {full_email} ...")
 
-    def _is_in_mailbox():
-        url = page.url
-        return "outlook.live.com/mail" in url or "outlook.live.com/owa" in url
+    from .openrouter import login_outlook
+    login_result = login_outlook(page, full_email, password)
 
-    for _ in range(20):
-        if _is_in_mailbox():
-            break
-
-        # 如果被重定向到微软宣传页，直接导航到邮箱
-        if "microsoft.com/" in page.url and "outlook.live.com" not in page.url:
-            try:
-                page.goto("https://outlook.live.com/mail/0/", timeout=20000, wait_until="domcontentloaded")
-                page.wait_for_timeout(5000)
-                continue
-            except:
-                pass
-
-        # 跳过 / 以后再说
-        try:
-            skip = page.locator(
-                '[data-testid="secondaryButton"], '
-                'a:has-text("暂时跳过"), a:has-text("Skip"), '
-                'button:has-text("跳过"), button:has-text("Skip")'
-            ).first
-            if skip.count() > 0 and skip.is_visible():
-                skip.click(timeout=3000)
-                page.wait_for_timeout(random.randint(1500, 2500))
-                continue
-        except:
-            pass
-
-        # 保持登录？
-        try:
-            no_btn = page.locator('button:has-text("否"), button:has-text("No")')
-            if no_btn.count() > 0 and no_btn.first.is_visible():
-                no_btn.first.click(timeout=3000)
-                page.wait_for_timeout(2000)
-                continue
-        except:
-            pass
-
-        # 是（保持登录也行）
-        try:
-            yes_btn = page.locator('button:has-text("是"), button:has-text("Yes")')
-            if yes_btn.count() > 0 and yes_btn.first.is_visible():
-                yes_btn.first.click(timeout=3000)
-                page.wait_for_timeout(2000)
-                continue
-        except:
-            pass
-
-        # 取消（通行密钥等）
-        try:
-            cancel = page.locator('button:has-text("取消"), button:has-text("Cancel")')
-            if cancel.count() > 0 and cancel.first.is_visible():
-                cancel.first.click(timeout=3000)
-                page.wait_for_timeout(2000)
-                continue
-        except:
-            pass
-
-        # 确定
-        try:
-            ok_btn = page.locator('button:has-text("确定"), button:has-text("OK")')
-            if ok_btn.count() > 0 and ok_btn.first.is_visible():
-                ok_btn.first.click(timeout=3000)
-                page.wait_for_timeout(2000)
-                continue
-        except:
-            pass
-
-        page.wait_for_timeout(2000)
-
-    # 如果还没到邮箱页面，主动导航
-    if not _is_in_mailbox():
-        try:
-            page.goto("https://outlook.live.com/mail/0/", timeout=25000, wait_until="domcontentloaded")
-            page.wait_for_timeout(8000)
-        except:
-            pass
-
-    # ── 步骤 5：确认注册成功并保存 ──
-    if _is_in_mailbox():
-        # 排除 440 错误
-        try:
-            body_text = page.locator('body').inner_text(timeout=3000)
-            if 'Something went wrong' in body_text:
-                print(f"[Error] - Outlook 报错 440")
-                return False
-        except:
-            pass
-        if save_account_to_json(f"{email}@outlook.com", password):
-            print(f'[Success: Email Registration] - {email}@outlook.com: {password}')
+    if login_result is not None:
+        if save_account_to_json(full_email, password):
+            print(f'[Success: Email Registration] - {full_email}: {password}')
         else:
-            print(f'[Warning] - 保存账号数据失败: {email}@outlook.com')
+            print(f'[Warning] - 保存账号数据失败: {full_email}')
         return True
 
-    # 验证码已通过，即使没进入邮箱也认为注册大概率成功
-    if save_account_to_json(f"{email}@outlook.com", password):
-        print(f'[Success: Email Registration] - {email}@outlook.com: {password} (未确认邮箱页面)')
-    return True
+    print(f"[Error] - {full_email} 注册后登录失败，账号无效")
+    return False
 
 
 def process_single_flow(task_id=0):

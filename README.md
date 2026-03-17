@@ -42,7 +42,7 @@ cat .cursor/skills/openrouter-register/SKILL.md
 AI 智能体读取 `SKILL.md` 后应能自主完成：
 1. 引导用户安装依赖和配置 SMTP / 代理
 2. 根据用户意图选择正确的 CLI 命令执行
-3. 遇到 CAPTCHA 时提示用户手动介入
+3. 自动处理 CAPTCHA 验证码（hsprotect 按压验证已全自动化）
 4. 在 Web 平台上展示运行结果
 
 ---
@@ -51,7 +51,7 @@ AI 智能体读取 `SKILL.md` 后应能自主完成：
 
 | 功能 | 命令 | 描述 |
 |------|------|------|
-| Outlook 批量注册 | `python main.py register` | 自动填写注册表单、生成随机账号、并发执行 |
+| Outlook 批量注册 | `python main.py register` | 自动填表 → 验证码 → 登录验证，全程无人值守 |
 | OpenRouter 全自动注册 | `python main.py openrouter` | Outlook 登录 → 注册 → 邮件验证 → 2FA → 创建 Key |
 | API Key 补创 | `python main.py openrouter --create-key` | 为已注册但缺少 Key 的账号自动创建 |
 | Web 管理平台 | `python main.py web` | 统计面板 + 账号表格 + Key 日报 + 搜索/导出 |
@@ -203,14 +203,15 @@ AutoRouterKey/
 
 ## 注意事项
 
-- **IP 质量**至关重要，低质量 IP 会导致注册失败
+- **IP 质量**至关重要，低质量 IP 会导致注册失败或验证码难度极高
 - 必须使用 **Chrome 原生无痕窗口**（`use_incognito_mode: true`）
+- 注册后会自动登录验证，确保账号真正可用
 - 敏感文件（`config/app.json`、`data/accounts.json`、`data/key_history.json`）已在 `.gitignore` 中排除
 
 ## 常见问题
 
 **Q: CAPTCHA 无法通过**
-A: 确认使用 Chrome 原生无痕（非 Playwright 默认 context），调大 `Bot_protection_wait`。
+A: 通常是 IP 质量问题，换住宅 IP 节点。确认使用 Chrome 原生无痕（`use_incognito_mode: true`），调大 `Bot_protection_wait`。
 
 **Q: OpenRouter 提示 "Couldn't find your account"**
 A: 账号未注册成功，用 `python main.py openrouter` 重新注册。
