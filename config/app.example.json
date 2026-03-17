@@ -1,6 +1,6 @@
 {
     "browser_path": "",
-    "proxy": "http://127.0.0.1:51081",
+    "proxy": "http://127.0.0.1:7890",
     "Bot_protection_wait": 30,
     "max_captcha_retries": 3,
     "concurrent_flows": 2,
@@ -18,7 +18,7 @@
     ],
     "_comments": {
         "browser_path": "留空时会自动检测macOS上的Chrome/Edge浏览器",
-        "proxy": "socks5://127.0.0.1:51081",
+        "proxy": "支持 http 和 socks5 协议，例如 socks5://127.0.0.1:7890",
         "use_incognito_mode": "是否使用无痕模式，有助于通过人机验证",
         "close_browser_after_registration": "注册完成后是否关闭浏览器，设置为false可在注册后继续操作",
         "macOS_browsers": [
@@ -26,7 +26,7 @@
             "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
         ]
     },
-    "info": "此配置已针对macOS优化。建议选用指纹浏览器，最好能过https://www.browserscan.net。如果enable_oauth2为false，则OAuth相关参数可选。浏览器路径留空时会自动检测。",
+    "info": "此配置已针对macOS优化。建议选用指纹浏览器，最好能过 https://www.browserscan.net 。如果 enable_oauth2 为 false，则 OAuth 相关参数可选。浏览器路径留空时会自动检测。",
     "registration_delay": 60,
     "use_random_delay": true
 }

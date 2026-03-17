@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environment
+venv/
+scripts/venv/
+.venv/
+env/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Claude / Cursor
+.claude/
+
+# Logs
+*.log
+
+# Data (contains sensitive account info)
+data/accounts.json
+
+# Config (may contain personal proxy/credentials)
+config/app.json
+
+# Distribution
+dist/
+build/
+*.egg-info/
