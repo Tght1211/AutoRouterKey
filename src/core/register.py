@@ -149,81 +149,71 @@ def get_available_browsers():
     
     return browsers
 
+def _get_browser_executable(preferred_browser=None):
+    """获取浏览器可执行路径"""
+    config = load_config()
+    browser_path = config.get('browser_path', '')
+    browser_executable = browser_path
+
+    if preferred_browser and not browser_executable:
+        available_browsers = get_available_browsers()
+        if preferred_browser in available_browsers:
+            browser_executable = available_browsers[preferred_browser]
+            print(f"[Info] - 使用指定浏览器: {preferred_browser} ({browser_executable})")
+
+    if not browser_executable and platform.system() == 'Darwin':
+        browser_executable = find_browser_on_mac()
+        if browser_executable:
+            print(f"[Info] - 在macOS上找到浏览器: {browser_executable}")
+
+    return browser_executable
+
+
+def _get_base_args():
+    """获取基础浏览器启动参数"""
+    config = load_config()
+    args = [
+        "--disable-blink-features=AutomationControlled",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-default-apps",
+        "--disable-popup-blocking",
+        "--disable-translate",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-ipc-flooding-protection",
+    ]
+    if config.get('use_incognito_mode', True):
+        args.append("--incognito")
+        print("🕵️ 启用无痕模式")
+    return args, config
+
+
 def OpenBrowser(preferred_browser=None):
+    """启动浏览器（launch模式，用于注册等不需要原生无痕的场景）"""
     try:
         p = sync_playwright().start()
-        
-        # 加载配置
         config = load_config()
-        browser_path = config.get('browser_path', '')
+        browser_executable = _get_browser_executable(preferred_browser)
         proxy = config.get('proxy', '')
-        
-        # 根据操作系统和配置选择浏览器路径
-        browser_executable = browser_path
-        
-        # 如果指定了首选浏览器，尝试使用
-        if preferred_browser and not browser_executable:
-            available_browsers = get_available_browsers()
-            if preferred_browser in available_browsers:
-                browser_executable = available_browsers[preferred_browser]
-                print(f"[Info] - 使用指定浏览器: {preferred_browser} ({browser_executable})")
-        
-        # 如果没有指定浏览器路径且在macOS上，尝试自动查找
-        if not browser_executable and platform.system() == 'Darwin':
-            browser_executable = find_browser_on_mac()
-            if browser_executable:
-                print(f"[Info] - 在macOS上找到浏览器: {browser_executable}")
-        
-        # 配置代理参数
+        base_args, _ = _get_base_args()
+
         proxy_config = None
         if proxy and proxy.strip():
-            proxy_config = {
-                "server": proxy,
-                "bypass": "localhost",
-            }
-        
-        # 基础浏览器参数
-        base_args = [
-            "--disable-blink-features=AutomationControlled",  # 避免检测
-            "--disable-web-security",  # 禁用web安全检查
-            "--disable-features=VizDisplayCompositor",  # 禁用某些检测特征
-            "--no-first-run",  # 跳过首次运行
-            "--no-default-browser-check",  # 不检查默认浏览器
-            "--disable-default-apps",  # 禁用默认应用
-            "--disable-popup-blocking",  # 禁用弹窗阻止
-            "--disable-translate",  # 禁用翻译提示
-            "--disable-background-timer-throttling",  # 禁用后台定时器限制
-            "--disable-backgrounding-occluded-windows",  # 禁用后台窗口
-            "--disable-renderer-backgrounding",  # 禁用渲染器后台
-            "--disable-field-trial-config",  # 禁用字段试验配置
-            "--disable-ipc-flooding-protection",  # 禁用IPC洪水保护
-        ]
-        
-        # 如果启用无痕模式，添加相应参数
-        use_incognito_mode = config.get('use_incognito_mode', True)
-        if use_incognito_mode:
-            base_args.append("--incognito")
-            print("🕵️ 启用无痕模式以提高人机验证通过率")
-        
-        # 启动浏览器配置
-        launch_options = {
-            "headless": False,
-            "args": base_args
-        }
-        
+            proxy_config = {"server": proxy, "bypass": "localhost"}
+
+        launch_options = {"headless": False, "args": base_args}
         if proxy_config:
             launch_options["proxy"] = proxy_config
-            
         if browser_executable:
             launch_options["executable_path"] = browser_executable
-            browser = p.chromium.launch(**launch_options)
-        else:
-            browser = p.chromium.launch(**launch_options)
-        
-        # 创建新的隐私浏览上下文
+
+        browser = p.chromium.launch(**launch_options)
+
         context = browser.new_context(
-            viewport={'width': 1200, 'height': 800},
-            user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport={'width': 1280, 'height': 900},
+            user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.160 Safari/537.36',
             locale='zh-CN,zh;q=0.9,en;q=0.8',
             timezone_id='Asia/Shanghai',
             permissions=['geolocation', 'notifications'],
@@ -235,34 +225,68 @@ def OpenBrowser(preferred_browser=None):
                 'Upgrade-Insecure-Requests': '1',
             }
         )
-        
-        # 注入脚本来隐藏webdriver特征
+
         context.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined,
-            });
-            
-            // 伪装Chrome插件
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3, 4, 5],
-            });
-            
-            // 伪装语言
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['zh-CN', 'zh', 'en'],
-            });
-            
-            // 移除webdriver痕迹
-            delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
-            delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
-            delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
         """)
-            
+
         return browser, p, context
 
     except Exception as e:
         print(f"[Error] - 启动浏览器失败: {e}")
         return None, None, None
+
+
+def OpenBrowserPersistent(playwright_instance=None, user_data_dir=None):
+    """使用 persistent context 启动浏览器（真正的 Chrome 原生无痕模式）
+    
+    Args:
+        playwright_instance: 可复用的 Playwright 实例，不传则新建
+        user_data_dir: 用户数据目录，不传则用临时目录
+    Returns:
+        (playwright_instance, context)
+    """
+    import tempfile
+    try:
+        p = playwright_instance or sync_playwright().start()
+        config = load_config()
+        browser_executable = _get_browser_executable()
+        proxy = config.get('proxy', '')
+        base_args, _ = _get_base_args()
+
+        if user_data_dir is None:
+            user_data_dir = tempfile.mkdtemp(prefix='pw_incognito_')
+
+        launch_options = {
+            "headless": False,
+            "args": base_args,
+            "viewport": {'width': 1280, 'height': 900},
+            "user_agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.160 Safari/537.36',
+            "locale": 'zh-CN',
+            "timezone_id": 'Asia/Shanghai',
+        }
+
+        proxy_config = None
+        if proxy and proxy.strip():
+            proxy_config = {"server": proxy, "bypass": "localhost"}
+            launch_options["proxy"] = proxy_config
+
+        if browser_executable:
+            launch_options["executable_path"] = browser_executable
+
+        context = p.chromium.launch_persistent_context(user_data_dir, **launch_options)
+
+        context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        """)
+
+        return p, context
+
+    except Exception as e:
+        print(f"[Error] - 启动持久浏览器失败: {e}")
+        return playwright_instance, None
 
 def Outlook_register(page, email, password):
     # 加载配置

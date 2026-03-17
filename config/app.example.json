@@ -28,5 +28,13 @@
     },
     "info": "此配置已针对macOS优化。建议选用指纹浏览器，最好能过 https://www.browserscan.net 。如果 enable_oauth2 为 false，则 OAuth 相关参数可选。浏览器路径留空时会自动检测。",
     "registration_delay": 60,
-    "use_random_delay": true
+    "use_random_delay": true,
+    "email_notify": {
+        "enabled": false,
+        "smtp_host": "smtp.qq.com",
+        "smtp_port": 465,
+        "email_user": "",
+        "email_pass": "",
+        "notify_to": ""
+    }
 }

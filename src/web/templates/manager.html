@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outlook 账号管理器</title>
+    <title>AutoRouterKey</title>
     <style>
         /* Apple Design System - 纯黑白主题 */
         :root {
@@ -749,8 +749,8 @@
     <div class="container">
         <!-- 顶部标题 -->
         <div class="header">
-            <h1>Outlook 账号管理器</h1>
-            <p>简洁高效的账号管理系统</p>
+            <h1>AutoRouterKey</h1>
+            <p>Outlook 注册 / OpenRouter 自动化 / API Key 管理</p>
         </div>
 
         <!-- 统计卡片 -->
@@ -766,6 +766,14 @@
             <div class="stat-card">
                 <div class="stat-number" id="registeredAccounts">0</div>
                 <div class="stat-label">已注册 OpenRouter</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="hasApiKeyAccounts">0</div>
+                <div class="stat-label">已获取 API Key</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="todayKeys">0</div>
+                <div class="stat-label">今日新增 Key</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="usedAccounts">0</div>
@@ -813,6 +821,7 @@
                             <th>密码</th>
                             <th>状态</th>
                             <th>OpenRouter</th>
+                            <th>API Key</th>
                             <th>创建时间</th>
                             <th>操作</th>
                         </tr>
@@ -832,6 +841,22 @@
                 <button class="pagination-btn" id="prevBtn" onclick="prevPage()" disabled>上一页</button>
                 <div id="pageNumbers"></div>
                 <button class="pagination-btn" id="nextBtn" onclick="nextPage()" disabled>下一页</button>
+            </div>
+        </div>
+
+        <!-- Key 日报 -->
+        <div class="table-container" id="keyDailySection">
+            <div class="table-header">
+                <div class="table-title">Key 日报</div>
+                <div class="table-actions">
+                    <button class="btn btn-sm btn-outline" id="copyAllKeysBtn" onclick="copyAllKeys()" style="display:none;">📋 复制全部 Key</button>
+                    <button class="btn btn-sm btn-outline" onclick="loadDailyKeys()">🔄 刷新</button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <div id="dailyKeysContent" style="padding: 20px;">
+                    <div class="loading"><div class="spinner"></div>加载中...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -931,7 +956,7 @@
         // 显示加载状态
         function showLoading() {
             const tbody = document.getElementById('accountsBody');
-            tbody.innerHTML = '<tr><td colspan="7" class="loading"><div class="spinner"></div>加载中...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="loading"><div class="spinner"></div>加载中...</td></tr>';
         }
 
         // 隐藏加载状态
@@ -939,37 +964,9 @@
             // 由 renderTable 处理
         }
 
-        // 加载示例数据
         function loadSampleAccounts() {
-            const sampleData = [
-                'nqtfooyhzjxip@outlook.com: HvWKO@HCOns7K',
-                'jwzowunvnustc@outlook.com: Zq0ZA16zK!P0',
-                'htfcctvg37qmix@outlook.com: pIUd^ee%qV9',
-                'cxzuvhnj2irevx@outlook.com: 2dRmB5WoWua*y',
-                'pdtbnecorclzb@outlook.com: yXGNdXd8de*M',
-                'bhdamuovtd03i@outlook.com: tVDwvQx6w%Og4',
-                'mwosoojtxnfz@outlook.com: K6WM^ixzyQGVc',
-                'xqpthgatdrckmm@outlook.com: 6Dbg#*fM0Ajdl'
-            ];
-
             allAccounts = [];
-            sampleData.forEach((line, index) => {
-                if (line.trim()) {
-                    const [email, password] = line.split(': ');
-                    if (email && password) {
-                        allAccounts.push({
-                            id: index + 1,
-                            email: email.trim(),
-                            password: password.trim(),
-                            status: 'available',
-                            openrouter: false,
-                            createdAt: new Date().toLocaleDateString('zh-CN')
-                        });
-                    }
-                }
-            });
-            nextId = allAccounts.length + 1;
-            saveAccounts();
+            nextId = 1;
         }
 
         // 密码显示/隐藏状态
@@ -989,7 +986,7 @@
             const pageAccounts = filteredAccounts.slice(startIndex, endIndex);
 
             if (pageAccounts.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="empty-icon">📭</div><div>暂无账号数据</div></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="empty-icon">📭</div><div>暂无账号数据</div></td></tr>';
                 updatePagination();
                 return;
             }
@@ -1033,6 +1030,12 @@
                                  onclick="toggleOpenRouter(${account.id})"></div>
                             <span class="toggle-label">${account.openrouter ? '已注册' : '未注册'}</span>
                         </div>
+                    </td>
+                    <td class="password-cell">
+                        ${account.openrouter_api_key ? 
+                            `<span style="font-family: monospace; font-size: 11px; color: var(--color-success);">${account.openrouter_api_key.substring(0, 15)}...</span>
+                             <button class="copy-btn" onclick="copyToClipboard('${account.openrouter_api_key}', this)" title="复制 API Key">📋</button>` 
+                            : '<span style="color: var(--color-text-secondary);">-</span>'}
                     </td>
                     <td>${account.createdAt}</td>
                     <td class="actions-cell">
@@ -1161,15 +1164,27 @@
             renderTable();
         }
 
-        // 更新统计数据
-        function updateStats() {
-            document.getElementById('totalAccounts').textContent = allAccounts.length;
-            document.getElementById('availableAccounts').textContent = 
-                allAccounts.filter(a => a.status === 'available').length;
-            document.getElementById('registeredAccounts').textContent = 
-                allAccounts.filter(a => a.openrouter).length;
-            document.getElementById('usedAccounts').textContent = 
-                allAccounts.filter(a => a.status === 'used').length;
+        async function updateStats() {
+            try {
+                const res = await fetch('/api/accounts/stats');
+                const data = await res.json();
+                if (data.success) {
+                    const s = data.stats;
+                    document.getElementById('totalAccounts').textContent = s.total;
+                    document.getElementById('availableAccounts').textContent = s.available;
+                    document.getElementById('registeredAccounts').textContent = s.registered;
+                    document.getElementById('hasApiKeyAccounts').textContent = s.has_api_key;
+                    document.getElementById('todayKeys').textContent = s.today_keys;
+                    document.getElementById('usedAccounts').textContent = s.used;
+                }
+            } catch (e) {
+                document.getElementById('totalAccounts').textContent = allAccounts.length;
+                document.getElementById('availableAccounts').textContent = allAccounts.filter(a => a.status === 'available').length;
+                document.getElementById('registeredAccounts').textContent = allAccounts.filter(a => a.openrouter).length;
+                document.getElementById('hasApiKeyAccounts').textContent = allAccounts.filter(a => a.openrouter_api_key).length;
+                document.getElementById('usedAccounts').textContent = allAccounts.filter(a => a.status === 'used').length;
+                document.getElementById('todayKeys').textContent = '-';
+            }
         }
 
         // 复制到剪贴板
@@ -1411,6 +1426,79 @@
                 hideAddModal();
             }
         };
+
+        // Key 日报
+        async function loadDailyKeys() {
+            const container = document.getElementById('dailyKeysContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+
+            try {
+                const res = await fetch('/api/keys/daily');
+                const data = await res.json();
+
+                if (!data.success || !data.data.length) {
+                    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div>暂无 Key 生成记录</div></div>';
+                    return;
+                }
+
+                let html = '';
+                data.data.forEach(day => {
+                    html += `<div style="margin-bottom: 24px;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <span style="font-size: 17px; font-weight: 600;">${day.date}</span>
+                            <span style="background: var(--color-info); color: white; padding: 2px 10px; border-radius: 12px; font-size: 12px;">${day.count} 个 Key</span>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead><tr style="background: var(--color-surface-secondary);">
+                                <th style="padding: 8px 16px; text-align: left; font-size: 12px; border: 1px solid var(--color-border-light);">#</th>
+                                <th style="padding: 8px 16px; text-align: left; font-size: 12px; border: 1px solid var(--color-border-light);">账号</th>
+                                <th style="padding: 8px 16px; text-align: left; font-size: 12px; border: 1px solid var(--color-border-light);">API Key</th>
+                                <th style="padding: 8px 16px; text-align: left; font-size: 12px; border: 1px solid var(--color-border-light);">创建时间</th>
+                            </tr></thead><tbody>`;
+                    day.keys.forEach((k, i) => {
+                        html += `<tr>
+                            <td style="padding: 8px 16px; border: 1px solid var(--color-border-light);">${i + 1}</td>
+                            <td style="padding: 8px 16px; border: 1px solid var(--color-border-light); font-family: monospace; font-size: 12px;">${k.email}</td>
+                            <td style="padding: 8px 16px; border: 1px solid var(--color-border-light); font-family: monospace; font-size: 11px; word-break: break-all;">
+                                ${k.api_key.substring(0, 20)}...
+                                <button class="copy-btn" onclick="copyToClipboard('${k.api_key}', this)" title="复制">📋</button>
+                            </td>
+                            <td style="padding: 8px 16px; border: 1px solid var(--color-border-light); font-size: 12px;">${k.created_at}</td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+
+                    const plainKeys = day.keys.map(k => k.api_key).join('\n');
+                    html += `<div style="margin-top: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <span style="font-size: 13px; font-weight: 500; color: var(--color-text-secondary);">Key 快速复制区（每行一个 Key）</span>
+                            <button class="btn btn-sm btn-outline" onclick="copyToClipboard(\`${plainKeys}\`, this)" style="font-size: 11px; padding: 2px 8px;">一键全部复制</button>
+                        </div>
+                        <pre style="background: var(--color-surface-secondary); padding: 12px; border-radius: 8px; font-family: 'SF Mono', Monaco, Menlo, monospace; font-size: 11px; line-height: 1.8; word-break: break-all; white-space: pre-wrap; border: 1px solid var(--color-border-light); user-select: all; max-height: 200px; overflow-y: auto;">${plainKeys}</pre>
+                    </div>`;
+                    html += '</div>';
+                });
+
+                container.innerHTML = html;
+                const allKeys = data.data.flatMap(d => d.keys.map(k => k.api_key));
+                window._allDailyKeys = allKeys;
+                document.getElementById('copyAllKeysBtn').style.display = allKeys.length ? '' : 'none';
+            } catch (e) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div>加载失败</div></div>';
+            }
+        }
+
+        function copyAllKeys() {
+            if (window._allDailyKeys && window._allDailyKeys.length) {
+                const text = window._allDailyKeys.join('\n');
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast(`已复制 ${window._allDailyKeys.length} 个 Key`, 'success');
+                }).catch(() => showToast('复制失败', 'error'));
+            }
+        }
+
+        // 初始化时加载日报
+        document.addEventListener('DOMContentLoaded', loadDailyKeys);
     </script>
 </body>
 </html>

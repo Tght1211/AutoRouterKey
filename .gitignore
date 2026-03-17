@@ -18,19 +18,26 @@ env/
 *~
 .DS_Store
 
-# Claude / Cursor
+# Claude / Cursor / Playwright
 .claude/
+.playwright-mcp/
+.cursor/plans/
 
-# Logs
+# Logs & Screenshots
 *.log
+data/*.png
 
 # Data (contains sensitive account info)
 data/accounts.json
+data/key_history.json
 
-# Config (may contain personal proxy/credentials)
+# Config (may contain personal proxy/credentials/SMTP passwords)
 config/app.json
 
 # Distribution
 dist/
 build/
 *.egg-info/
+
+# Temporary browser data
+/tmp_*

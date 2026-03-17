@@ -3,7 +3,7 @@
 
 """
 macOS系统兼容性检查脚本
-检查运行OutlookRegister所需的系统环境
+检查运行AutoRouterKey所需的系统环境
 """
 
 import os
@@ -196,7 +196,7 @@ def main():
     print(f"\n🎯 总体评分: {passed}/{total} ({passed/total*100:.1f}%)")
     
     if passed == total:
-        print("🎉 恭喜！系统环境完全兼容，可以正常运行OutlookRegister。")
+        print("🎉 恭喜！系统环境完全兼容，可以正常运行AutoRouterKey。")
     elif passed >= total * 0.7:
         print("⚠️  系统环境基本兼容，但有一些问题需要解决。")
     else:

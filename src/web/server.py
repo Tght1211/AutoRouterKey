@@ -11,12 +11,12 @@ from flask_cors import CORS
 
 
 app = Flask(__name__)
-CORS(app)  # 允许跨域请求
+CORS(app)
 
-# 配置
 DATA_DIR = Path("data")
 RESULTS_DIR = DATA_DIR / "results"
 ACCOUNTS_JSON = DATA_DIR / "accounts.json"
+KEY_HISTORY_JSON = DATA_DIR / "key_history.json"
 
 
 
@@ -218,34 +218,77 @@ def update_account_notes(account_id):
 def get_accounts_stats():
     """获取账号统计信息"""
     try:
-        # 获取所有账号
-        response = get_accounts()
-        if response.status_code != 200:
-            return response
-        
-        accounts_data = response.get_json()
-        accounts = accounts_data['data']
-        
-        # 计算统计信息
+        accounts = load_accounts_from_json()
+        today = datetime.now().strftime('%Y-%m-%d')
+        key_history = _load_key_history()
+
         total = len(accounts)
-        available = len([a for a in accounts if a['status'] == 'available'])
-        registered = len([a for a in accounts if a['openrouter']])
-        used = len([a for a in accounts if a['status'] == 'used'])
-        
+        available = len([a for a in accounts if a.get('status') == 'available'])
+        registered = len([a for a in accounts if a.get('openrouter')])
+        has_api_key = len([a for a in accounts if a.get('openrouter_api_key')])
+        used = len([a for a in accounts if a.get('status') == 'used'])
+        today_keys = len([k for k in key_history if k.get('date') == today])
+
         return jsonify({
             'success': True,
             'stats': {
                 'total': total,
                 'available': available,
                 'registered': registered,
-                'used': used
+                'has_api_key': has_api_key,
+                'used': used,
+                'today_keys': today_keys
             }
         })
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _load_key_history():
+    """加载 Key 历史记录"""
+    try:
+        if KEY_HISTORY_JSON.exists():
+            with open(KEY_HISTORY_JSON, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return []
+
+
+@app.route('/api/keys/daily')
+def get_daily_keys():
+    """按日期分组返回 Key 诞生记录"""
+    try:
+        history = _load_key_history()
+        daily = {}
+        for k in history:
+            d = k.get('date', 'unknown')
+            daily.setdefault(d, []).append(k)
+        # 按日期倒序
+        sorted_daily = sorted(daily.items(), key=lambda x: x[0], reverse=True)
         return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            'success': True,
+            'data': [{'date': d, 'keys': keys, 'count': len(keys)} for d, keys in sorted_daily]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/keys/today')
+def get_today_keys():
+    """返回今日诞生的 Key 列表"""
+    try:
+        today = datetime.now().strftime('%Y-%m-%d')
+        history = _load_key_history()
+        today_keys = [k for k in history if k.get('date') == today]
+        return jsonify({
+            'success': True,
+            'date': today,
+            'data': today_keys,
+            'count': len(today_keys)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/accounts/export')
 def export_accounts():
@@ -324,7 +367,7 @@ def refresh_accounts():
 
 if __name__ == '__main__':
     ensure_data_dir()
-    print("🚀 Outlook 账号管理服务器启动中...")
+    print("🚀 AutoRouterKey Web 管理平台启动中...")
     print("📍 Web界面: http://localhost:5010")
     print("📍 API文档: http://localhost:5010/api/accounts")
     print("🔄 支持热重载，修改文件后会自动更新")

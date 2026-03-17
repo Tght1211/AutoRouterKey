@@ -1,7 +1,7 @@
 #!/bin/bash
-# Outlook 账号管理器启动脚本
+# AutoRouterKey Web 管理平台启动脚本
 
-echo "🚀 启动 Outlook 账号管理器..."
+echo "🚀 启动 AutoRouterKey Web 管理平台..."
 
 # 检查是否在虚拟环境中
 if [[ "$VIRTUAL_ENV" != "" ]]; then
