@@ -64,9 +64,52 @@ cp data/accounts.example.json data/accounts.json
 | "发送日报" / "看看昨天的 Key" | `python main.py scheduler --send-now` |
 | "启动定时任务" | `python main.py scheduler` |
 
-### 步骤 4：CAPTCHA 处理
+### 步骤 4：CAPTCHA 处理（AI 操作指南）
 
-执行过程中如果出现 `[CAPTCHA] - 检测到人机验证` 提示，**立即告知用户**需要手动在浏览器中完成验证，完成后自动继续。
+注册 Outlook 时会遇到 **PerimeterX hsprotect 按压验证码**。程序会自动填完表单并在验证码处暂停，输出如下日志：
+
+```
+==================================================
+[CAPTCHA] - 检测到验证码，需要在浏览器中长按按钮！
+[CAPTCHA] - 按钮坐标: x=640, y=425, 宽=300, 高=50
+[CAPTCHA] - 等待操作，最多 120 秒...
+==================================================
+```
+
+**你（AI）需要用浏览器工具完成按压**。操作步骤：
+
+#### 4.1 获取目标
+- 日志会输出 `#px-captcha` 按钮的精确坐标（中心点 x, y）
+- 如果没有坐标，先用 `browser_snapshot` 获取页面状态，找到验证码按钮
+
+#### 4.2 按压策略（关键！）
+验证码是一个**进度条长按按钮**，需要模拟真人按压行为：
+
+1. **先移动鼠标到按钮上方**（用 `browser_click` 或鼠标移动）
+2. **执行 mousedown**（按下鼠标）
+3. **持续按住 8-12 秒**，期间：
+   - 每隔 2-3 秒**短暂松开再快速按回去**（松开时间 50-150ms，模拟手指微抖）
+   - 偶尔做极微小的鼠标位移（±1px 以内）
+4. **观察进度条**：进度条走完的瞬间**立即松开**，不要多按，否则会被判定为机器人
+5. 如果一次没通过，等验证码重置后重复上述步骤
+
+#### 4.3 关键注意事项
+- **不要一直按到超时**：进度条满了就松，多按 0.5 秒都可能失败
+- **偶尔短暂松开**：纯连续按压容易被检测，中间短暂松开（50-150ms）再按回去更像真人
+- **不要移动太多**：按压期间鼠标位移超过 2px 会导致失败
+- 验证码在 `iframe[src*="hsprotect"]` 内的 `#px-captcha` 元素上
+- 程序会自动轮询检测验证码是否通过（iframe 消失），通过后自动继续后续流程
+
+#### 4.4 使用浏览器 MCP 工具操作示例
+```
+1. browser_snapshot  → 确认验证码页面已加载
+2. browser_click(x, y, button="left")  → 触发 mousedown，开始长按
+3. browser_wait(8000)  → 等待进度条
+4. browser_snapshot  → 观察进度条状态
+5. 如果进度条快满了，松开鼠标
+```
+
+> **注意**：具体的浏览器 MCP 工具名称和参数以实际可用的工具为准。核心思路是：**mousedown → 持续等待 → 观察进度 → 及时 mouseup**。
 
 ### 步骤 5：结果确认
 
@@ -99,7 +142,21 @@ cp data/accounts.example.json data/accounts.json
 - User-Agent 必须匹配真实 Chrome 版本（当前 `Chrome/145.0.7632.160`）
 - 禁止 `--disable-web-security`
 
-### 验证流程
+### Outlook 注册流程（当前版本）
+- 注册地址：`signup.live.com/signup?wa=wsignin1.0&rpsnv=173&id=292841&wreply=...&cobrandid=90015&lic=1`
+- **不要用** `outlook.live.com/mail/0/?prompt=create_account`（已过时）
+- **不要用** `signup.live.com/signup?lic=1&mkt=zh-CN`（这是用已有邮箱注册，不是创建新 Outlook）
+- 注册表单步骤顺序：同意协议 → 邮箱用户名 → 密码 → 国家/地区+出生日期 → 姓名 → 验证码
+- 输入框 name 属性可能是中文（如 `name="新建电子邮件"`），代码已做兼容
+- 注册后会被重定向到微软宣传页而不是邮箱，这是正常的，需要主动导航到 `outlook.live.com/mail/0/`
+
+### 验证码（hsprotect 按压）
+- 验证码是 PerimeterX 的 hsprotect 长按按钮，**Playwright 自动按压无法通过**
+- 程序会自动填完表单，到验证码时暂停并输出按钮坐标
+- **需要 AI 用浏览器工具或人工手动完成按压**（参见步骤 4 详细指南）
+- IP 质量对验证码难度影响极大，住宅 IP 通过率远高于数据中心 IP
+
+### OpenRouter 验证流程
 - 验证链接必须在 OpenRouter 的**同一个 page** 中打开（保持 Clerk session）
 - 邮件验证码从 Outlook 邮件列表项的 **title 属性**提取（比打开正文更快）
 - 2FA 用 `keyboard.type(code, delay=100)` 逐字符输入（OpenRouter 用 6 个独立 input）
